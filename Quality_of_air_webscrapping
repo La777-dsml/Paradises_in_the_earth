@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+# Encabezados para simular un navegador
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+}
+
+# Lista para almacenar los datos
+data = []
+
+# Itera a través de las páginas de 102 a 157
+for page in range(102, 158):
+    # Construye la URL para la página actual
+    url = f'https://www.iqair.com/mx/world-most-polluted-cities?continent=&country=&state=&sort=-rank&page={page}&perPage=50&cities='
+
+    # Realiza la solicitud HTTP para obtener el contenido de la página
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Lanza una excepción si la respuesta HTTP contiene un error
+
+        # Analiza el contenido HTML con BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Encuentra todos los elementos <tr> que representan las filas de la tabla
+        rows = soup.find_all('tr', class_='mat-row')
+
+        # Itera a través de cada fila y extrae la información
+        for row in rows:
+            # Encuentra las celdas dentro de la fila
+            cells = row.find_all('td')
+
+            if len(cells) >= 2:
+                # Extrae el valor del rango (primera celda) y el nombre de la ciudad (segunda celda)
+                rank = cells[0].text.strip()
+                city_name = cells[1].find('div', class_='city-name').text.strip()
+
+                # Añade los datos a la lista
+                data.append({'Rank': rank, 'City': city_name})
+    except requests.RequestException as e:
+        print(f"Error al realizar la solicitud para la página {page}: {e}")
+
+# Verifica si la lista de datos no está vacía antes de crear el DataFrame
+if data:
+    # Crea un DataFrame de pandas con los datos
+    df = pd.DataFrame(data)
+
+    # Guarda los datos en un archivo Excel
+    df.to_excel('polluted_cities_ranks.xlsx', index=False)
+
+    print("Datos guardados en polluted_cities_ranks.xlsx")
+else:
+    print("No se han encontrado datos para guardar.")
+
+from google.colab import files
+files.download('polluted_cities_ranks.xlsx')
