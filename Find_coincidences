@@ -1,0 +1,108 @@
+import pandas as pd
+from thefuzz import fuzz
+from thefuzz import process
+from tqdm import tqdm  # Importar tqdm para el seguimiento del progreso
+
+# Ruta del archivo Excel
+archivo_excel = "C:/Users/luisa/Downloads/DATOS.xlsx"
+
+# Cargar cada hoja en un DataFrame
+COST_NUMBEO = pd.read_excel(archivo_excel, sheet_name='COST_NUMBEO')
+COST_EXPATISTAN = pd.read_excel(archivo_excel, sheet_name='COST_EXPATISTAN')
+CLEAN_AIR_IQAIR = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_IQAIR')
+CLEAN_AIR_EEA = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_EEA')
+TRAFFIC_TOMTOM = pd.read_excel(archivo_excel, sheet_name='TRAFFIC_TOMTOM')
+SAFETY_NUMBEO = pd.read_excel(archivo_excel, sheet_name='SAFETY_NUMBEO')
+SAFETY_GLOBALRESIDENCE = pd.read_excel(archivo_excel, sheet_name='SAFETY_GLOBALRESIDENCE')
+SAFETY_ECONOMIST = pd.read_excel(archivo_excel, sheet_name='SAFETY_ECONOMIST')
+HUMIDITY_HOUSEFRESH = pd.read_excel(archivo_excel, sheet_name='HUMIDITY_HOUSEFRESH')
+INTERNETHIGH_SPEEDTEST = pd.read_excel(archivo_excel, sheet_name='INTERNETHIGH_SPEEDTEST')
+
+# Lista de DataFrames
+dataframes = [
+    COST_NUMBEO, 
+    COST_EXPATISTAN, 
+    CLEAN_AIR_IQAIR, 
+    CLEAN_AIR_EEA, 
+    TRAFFIC_TOMTOM, 
+    SAFETY_NUMBEO, 
+    SAFETY_GLOBALRESIDENCE, 
+    SAFETY_ECONOMIST, 
+    HUMIDITY_HOUSEFRESH, 
+    INTERNETHIGH_SPEEDTEST
+]
+
+# Nombres de las hojas correspondientes
+nombres_hojas = [
+    'COST_NUMBEO', 
+    'COST_EXPATISTAN', 
+    'CLEAN_AIR_IQAIR', 
+    'CLEAN_AIR_EEA', 
+    'TRAFFIC_TOMTOM', 
+    'SAFETY_NUMBEO', 
+    'SAFETY_GLOBALRESIDENCE', 
+    'SAFETY_ECONOMIST', 
+    'HUMIDITY_HOUSEFRESH', 
+    'INTERNETHIGH_SPEEDTEST'
+]
+
+# Crear un conjunto para almacenar todas las ciudades únicas
+ciudades_unicas = set()
+
+# Recopilar todas las ciudades en el conjunto
+for df in dataframes:
+    if 'City' in df.columns:
+        ciudades_unicas.update(df['City'].dropna().unique())
+
+# Función para contar coincidencias en cada DataFrame y almacenar datos asociados
+def contar_coincidencias(ciudades, dataframes, nombres_hojas, umbral_similitud=80):
+    conteo_coincidencias = {}
+    
+    # Inicializar el conteo de coincidencias para cada ciudad
+    for ciudad in ciudades:
+        conteo_coincidencias[ciudad] = {
+            'conteo': 0,
+            'hojas': {}
+        }
+        
+    for idx, (df, nombre_hoja) in enumerate(zip(dataframes, nombres_hojas)):
+        for ciudad in tqdm(ciudades, desc="Contando coincidencias", unit="ciudad"):
+            # Coincidencias exactas
+            coincidencias_exactas = df[df['City'].str.contains(ciudad, case=False, na=False)]
+            conteo_coincidencias[ciudad]['conteo'] += len(coincidencias_exactas)
+
+            # Almacenar los datos asociados a las coincidencias exactas
+            if not coincidencias_exactas.empty:
+                conteo_coincidencias[ciudad]['hojas'][nombre_hoja] = coincidencias_exactas
+
+            # Obtener todas las ciudades únicas en el DataFrame
+            ciudades_df = df['City'].dropna().unique()
+
+            # Coincidencias similares
+            coincidencias_similares = process.extract(ciudad, ciudades_df, scorer=fuzz.ratio)
+
+            for resultado in coincidencias_similares:
+                if len(resultado) >= 3:
+                    ciudad_similar, puntaje, _ = resultado
+                    if puntaje >= umbral_similitud:
+                        # Almacenar información de coincidencias similares
+                        coincidencias_similares_df = df[df['City'].str.contains(ciudad_similar, case=False, na=False)]
+                        conteo_coincidencias[ciudad]['conteo'] += len(coincidencias_similares_df)
+                        if not coincidencias_similares_df.empty:
+                            conteo_coincidencias[ciudad]['hojas'][nombre_hoja] = coincidencias_similares_df
+
+    return conteo_coincidencias
+
+# Contar las coincidencias en todas las hojas
+conteo_resultados = contar_coincidencias(ciudades_unicas, dataframes, nombres_hojas)
+
+# Filtrar las ciudades que aparecen en al menos 4 hojas
+min_ocurrencias = 4
+ciudades_frecuentes = {ciudad: datos for ciudad, datos in conteo_resultados.items() if datos['conteo'] >= min_ocurrencias}
+
+# Mostrar las ciudades frecuentes y la información de las hojas
+print("Ciudades que aparecen en al menos 4 hojas:")
+for ciudad, datos in ciudades_frecuentes.items():
+    print(f"{ciudad}: {datos['conteo']} coincidencias")
+    for hoja, info in datos['hojas'].items():
+        print(f"  - Hoja: {hoja}, Datos: {info.to_string(index=False)}")
