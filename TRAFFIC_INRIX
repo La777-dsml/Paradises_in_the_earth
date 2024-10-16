@@ -1,0 +1,86 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
+# Iniciar el servicio de Chrome
+service = Service(ChromeDriverManager().install())
+
+# Configurar las opciones de Chrome
+options = webdriver.ChromeOptions()
+options.add_argument('--headless')  # Ejecutar en modo sin cabeza, si es necesario
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
+
+# Iniciar el navegador
+driver = webdriver.Chrome(service=service, options=options)
+
+# Navegar a la página
+url = 'https://inrix.com/scorecard/#city-ranking-list'  # Cambia a la URL correcta
+driver.get(url)
+
+# Esperar un momento para que la página cargue
+time.sleep(5)
+
+# Intentar cerrar el pop-up de consentimiento de cookies si existe
+try:
+    consent_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.ID, 'onetrust-accept-btn-handler'))  # Usando el ID del botón
+    )
+    consent_button.click()
+    print("Pop-up de consentimiento cerrado.")
+except Exception as e:
+    print("No se pudo cerrar el pop-up de consentimiento de cookies o no existe.")
+    print(f"Error: {e}")
+
+# Función para extraer rankings y nombres de ciudades
+def extract_rankings():
+    rankings = []
+    rankings_elements = driver.find_elements(By.CSS_SELECTOR, 'div.ag-row')  # Encuentra cada fila de ranking
+    for row in rankings_elements:
+        rank = row.find_element(By.CLASS_NAME, 'ag-cell-value').text  # Obtener el ranking
+        city = row.find_elements(By.CLASS_NAME, 'ag-cell-value')[1].text  # Obtener la ciudad (ajusta el índice si es necesario)
+        rankings.append((rank, city))
+    return rankings
+
+# Extraer los rankings de la primera página
+all_rankings = extract_rankings()
+print("Ranking y ciudad extraídos de la primera página:")
+for rank, city in all_rankings:
+    print(f"{rank} {city}")
+
+# Navegar a través de las páginas
+while True:
+    try:
+        # Intentar hacer clic en el botón 'Next Page'
+        next_button = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[data-ref="btNext"]'))
+        )
+        
+        # Scroll hacia el botón
+        driver.execute_script("arguments[0].scrollIntoView();", next_button)
+        time.sleep(1)  # Esperar un segundo para que el scroll tenga efecto
+
+        # Hacer clic en el botón 'Next Page'
+        next_button.click()
+        print("Botón 'Next Page' clicado.")
+
+        # Esperar un momento para que la nueva página cargue
+        time.sleep(5)
+
+        # Extraer rankings de la nueva página
+        rankings = extract_rankings()
+        print("Ranking y ciudad extraídos de la nueva página:")
+        for rank, city in rankings:
+            print(f"{rank} {city}")
+
+    except Exception as e:
+        print("No se pudo hacer clic en el botón 'Next Page' o no hay más páginas.")
+        print(f"Error: {e}")
+        break  # Salir del bucle si no hay más páginas
+
+# Cerrar el navegador
+driver.quit()
