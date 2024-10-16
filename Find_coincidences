@@ -4,7 +4,7 @@ from thefuzz import process
 from tqdm import tqdm  # Importar tqdm para el seguimiento del progreso
 
 # Ruta del archivo Excel
-archivo_excel = ""
+archivo_excel = "C:/Users/luisa/Downloads/DATOS.xlsx"
 
 # Cargar cada hoja en un DataFrame
 COST_NUMBEO = pd.read_excel(archivo_excel, sheet_name='COST_NUMBEO')
@@ -12,6 +12,7 @@ COST_EXPATISTAN = pd.read_excel(archivo_excel, sheet_name='COST_EXPATISTAN')
 CLEAN_AIR_IQAIR = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_IQAIR')
 CLEAN_AIR_EEA = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_EEA')
 TRAFFIC_TOMTOM = pd.read_excel(archivo_excel, sheet_name='TRAFFIC_TOMTOM')
+TRAFFIC_INRIX = pd.read_excel(archivo_excel, sheet_name='TRAFFIC_INRIX')  # Cargar la nueva hoja
 SAFETY_NUMBEO = pd.read_excel(archivo_excel, sheet_name='SAFETY_NUMBEO')
 SAFETY_GLOBALRESIDENCE = pd.read_excel(archivo_excel, sheet_name='SAFETY_GLOBALRESIDENCE')
 SAFETY_ECONOMIST = pd.read_excel(archivo_excel, sheet_name='SAFETY_ECONOMIST')
@@ -25,6 +26,7 @@ dataframes = [
     CLEAN_AIR_IQAIR, 
     CLEAN_AIR_EEA, 
     TRAFFIC_TOMTOM, 
+    TRAFFIC_INRIX,  # Agregar TRAFFIC_INRIX
     SAFETY_NUMBEO, 
     SAFETY_GLOBALRESIDENCE, 
     SAFETY_ECONOMIST, 
@@ -39,6 +41,7 @@ nombres_hojas = [
     'CLEAN_AIR_IQAIR', 
     'CLEAN_AIR_EEA', 
     'TRAFFIC_TOMTOM', 
+    'TRAFFIC_INRIX',  # Agregar TRAFFIC_INRIX
     'SAFETY_NUMBEO', 
     'SAFETY_GLOBALRESIDENCE', 
     'SAFETY_ECONOMIST', 
@@ -67,7 +70,7 @@ def contar_coincidencias(ciudades, dataframes, nombres_hojas, umbral_similitud=8
         
     hojas_cost = ['COST_NUMBEO', 'COST_EXPATISTAN']
     hojas_clean_air = ['CLEAN_AIR_IQAIR', 'CLEAN_AIR_EEA']
-    hojas_traffic = ['TRAFFIC_TOMTOM']
+    hojas_traffic = ['TRAFFIC_TOMTOM', 'TRAFFIC_INRIX']  # Actualizar para incluir TRAFFIC_INRIX
     hojas_safety = ['SAFETY_NUMBEO', 'SAFETY_GLOBALRESIDENCE', 'SAFETY_ECONOMIST']
     
     for idx, (df, nombre_hoja) in enumerate(zip(dataframes, nombres_hojas)):
@@ -110,7 +113,7 @@ def filtrar_ciudades_requeridas(conteo_resultados):
         if (
             any(hoja in datos['hojas'] for hoja in ['COST_NUMBEO', 'COST_EXPATISTAN']) and
             any(hoja in datos['hojas'] for hoja in ['CLEAN_AIR_IQAIR', 'CLEAN_AIR_EEA']) and
-            'TRAFFIC_TOMTOM' in datos['hojas'] and
+            any(hoja in datos['hojas'] for hoja in ['TRAFFIC_TOMTOM', 'TRAFFIC_INRIX']) and  # Actualizar para incluir TRAFFIC_INRIX
             any(hoja in datos['hojas'] for hoja in ['SAFETY_NUMBEO', 'SAFETY_GLOBALRESIDENCE', 'SAFETY_ECONOMIST'])
         ):
             ciudades_validas[ciudad] = datos
