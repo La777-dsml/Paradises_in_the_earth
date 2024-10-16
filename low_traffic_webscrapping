@@ -3,24 +3,22 @@ import requests
 from bs4 import BeautifulSoup
 import json
 
-# Reemplaza con la URL del sitio web
-url = 'https://www.tomtom.com/traffic-index/ranking/?country=ES'  # Cambia esto con la URL real
+url = 'https://www.tomtom.com/traffic-index/ranking/?country=ES'  
 
-# Realiza la solicitud HTTP para obtener el contenido de la página
 response = requests.get(url)
 
 if response.status_code == 200:
-    # Analiza el contenido HTML con BeautifulSoup
+
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Encuentra el script con el id "__NEXT_DATA__"
+
     script = soup.find('script', id='__NEXT_DATA__')
 
     if script:
-        # Carga el contenido JSON del script
+
         json_data = json.loads(script.string)
 
-# ... (código anterior para obtener json_data)
+
 
 cities = json_data['props']['pageProps']['cities']
 
@@ -42,7 +40,7 @@ for city in cities_metro:
 
 import pandas as pd
 
-# ... (código para obtener cities y citiesMetro desde json_data)
+
 
 data = []
 for city in cities:
