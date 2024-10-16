@@ -4,7 +4,7 @@ from thefuzz import process
 from tqdm import tqdm  # Importar tqdm para el seguimiento del progreso
 
 # Ruta del archivo Excel
-archivo_excel = "C:/Users/luisa/Downloads/DATOS.xlsx"
+archivo_excel = "Ubicacion_del_archivo.xlsx"
 
 # Cargar cada hoja en un DataFrame
 COST_NUMBEO = pd.read_excel(archivo_excel, sheet_name='COST_NUMBEO')
