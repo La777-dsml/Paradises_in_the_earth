@@ -1,7 +1,7 @@
 import pandas as pd
 from thefuzz import fuzz
 from thefuzz import process
-from tqdm import tqdm
+from tqdm import tqdm 
 
 archivo_excel = "Ubicacion_del_archivo.xlsx"
 
@@ -9,6 +9,7 @@ COST_NUMBEO = pd.read_excel(archivo_excel, sheet_name='COST_NUMBEO')
 COST_EXPATISTAN = pd.read_excel(archivo_excel, sheet_name='COST_EXPATISTAN')
 CLEAN_AIR_IQAIR = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_IQAIR')
 CLEAN_AIR_EEA = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_EEA')
+CLEAN_AIR_AIQ = pd.read_excel(archivo_excel, sheet_name='CLEAN_AIR_AIQ')
 TRAFFIC_TOMTOM = pd.read_excel(archivo_excel, sheet_name='TRAFFIC_TOMTOM')
 TRAFFIC_INRIX = pd.read_excel(archivo_excel, sheet_name='TRAFFIC_INRIX') 
 SAFETY_NUMBEO = pd.read_excel(archivo_excel, sheet_name='SAFETY_NUMBEO')
@@ -22,6 +23,7 @@ dataframes = [
     COST_EXPATISTAN, 
     CLEAN_AIR_IQAIR, 
     CLEAN_AIR_EEA, 
+    CLEAN_AIR_AIQ,
     TRAFFIC_TOMTOM, 
     TRAFFIC_INRIX, 
     SAFETY_NUMBEO, 
@@ -31,14 +33,14 @@ dataframes = [
     INTERNETHIGH_SPEEDTEST
 ]
 
-
 nombres_hojas = [
     'COST_NUMBEO', 
     'COST_EXPATISTAN', 
     'CLEAN_AIR_IQAIR', 
     'CLEAN_AIR_EEA', 
+    'CLEAN_AIR_AIQ', 
     'TRAFFIC_TOMTOM', 
-    'TRAFFIC_INRIX', 
+    'TRAFFIC_INRIX',  
     'SAFETY_NUMBEO', 
     'SAFETY_GLOBALRESIDENCE', 
     'SAFETY_ECONOMIST', 
@@ -58,69 +60,78 @@ def contar_coincidencias(ciudades, dataframes, nombres_hojas, umbral_similitud=8
     for ciudad in ciudades:
         conteo_coincidencias[ciudad] = {
             'conteo': 0,
-            'hojas': {}
+            'hojas': {},
+            'humedad': None,
+            'internet': None
         }
         
     hojas_cost = ['COST_NUMBEO', 'COST_EXPATISTAN']
-    hojas_clean_air = ['CLEAN_AIR_IQAIR', 'CLEAN_AIR_EEA']
-    hojas_traffic = ['TRAFFIC_TOMTOM', 'TRAFFIC_INRIX'] 
+    hojas_clean_air = ['CLEAN_AIR_IQAIR', 'CLEAN_AIR_EEA','CLEAN_AIR_AIQ']
+    hojas_traffic = ['TRAFFIC_TOMTOM', 'TRAFFIC_INRIX']  # Actualizar para incluir TRAFFIC_INRIX
     hojas_safety = ['SAFETY_NUMBEO', 'SAFETY_GLOBALRESIDENCE', 'SAFETY_ECONOMIST']
     
     for idx, (df, nombre_hoja) in enumerate(zip(dataframes, nombres_hojas)):
         for ciudad in tqdm(ciudades, desc="Contando coincidencias", unit="ciudad"):
-            
             coincidencias_exactas = df[df['City'].str.contains(ciudad, case=False, na=False, regex=False)]
-            
             
             if nombre_hoja in hojas_cost + hojas_clean_air + hojas_traffic + hojas_safety:
                 if not coincidencias_exactas.empty:
                     conteo_coincidencias[ciudad]['conteo'] += len(coincidencias_exactas)
                     conteo_coincidencias[ciudad]['hojas'][nombre_hoja] = coincidencias_exactas
 
-            
             ciudades_df = df['City'].dropna().unique()
 
-            
             coincidencias_similares = process.extract(ciudad, ciudades_df, scorer=fuzz.ratio)
 
             for resultado in coincidencias_similares:
                 if len(resultado) >= 3:
                     ciudad_similar, puntaje, _ = resultado
                     if puntaje >= umbral_similitud:
-                        
                         coincidencias_similares_df = df[df['City'].str.contains(ciudad_similar, case=False, na=False, regex=False)]
                         if nombre_hoja in hojas_cost + hojas_clean_air + hojas_traffic + hojas_safety:
                             conteo_coincidencias[ciudad]['conteo'] += len(coincidencias_similares_df)
                             if not coincidencias_similares_df.empty:
                                 conteo_coincidencias[ciudad]['hojas'][nombre_hoja] = coincidencias_similares_df
 
+    for ciudad in ciudades:
+        if 'HUMIDITY_HOUSEFRESH' in nombres_hojas:
+            humedad_coincidencias = HUMIDITY_HOUSEFRESH[HUMIDITY_HOUSEFRESH['City'].str.contains(ciudad, case=False, na=False)]
+            if not humedad_coincidencias.empty:
+                conteo_coincidencias[ciudad]['humedad'] = humedad_coincidencias['City'].values[0]  # Agrega el nombre de la ciudad
+
+        if 'INTERNETHIGH_SPEEDTEST' in nombres_hojas:
+            internet_coincidencias = INTERNETHIGH_SPEEDTEST[INTERNETHIGH_SPEEDTEST['City'].str.contains(ciudad, case=False, na=False)]
+            if not internet_coincidencias.empty:
+                conteo_coincidencias[ciudad]['internet'] = internet_coincidencias['City'].values[0]  # Agrega el nombre de la ciudad
+
     return conteo_coincidencias
 
-
 conteo_resultados = contar_coincidencias(ciudades_unicas, dataframes, nombres_hojas)
-
 
 def filtrar_ciudades_requeridas(conteo_resultados):
     ciudades_validas = {}
     for ciudad, datos in conteo_resultados.items():
         if (
             any(hoja in datos['hojas'] for hoja in ['COST_NUMBEO', 'COST_EXPATISTAN']) and
-            any(hoja in datos['hojas'] for hoja in ['CLEAN_AIR_IQAIR', 'CLEAN_AIR_EEA']) and
-            any(hoja in datos['hojas'] for hoja in ['TRAFFIC_TOMTOM', 'TRAFFIC_INRIX']) and 
+            any(hoja in datos['hojas'] for hoja in ['CLEAN_AIR_IQAIR', 'CLEAN_AIR_EEA','CLEAN_AIR_AIQ']) and
+            any(hoja in datos['hojas'] for hoja in ['TRAFFIC_TOMTOM', 'TRAFFIC_INRIX']) and  
             any(hoja in datos['hojas'] for hoja in ['SAFETY_NUMBEO', 'SAFETY_GLOBALRESIDENCE', 'SAFETY_ECONOMIST'])
         ):
             ciudades_validas[ciudad] = datos
     return ciudades_validas
 
-
 ciudades_frecuentes = filtrar_ciudades_requeridas(conteo_resultados)
 
-
 ciudades_frecuentes_ordenadas = dict(sorted(ciudades_frecuentes.items(), key=lambda item: item[1]['conteo']))
-
 
 print("Ciudades que cumplen con los requisitos (ordenadas de menor a mayor coincidencias):")
 for ciudad, datos in ciudades_frecuentes_ordenadas.items():
     print(f"{ciudad}: {datos['conteo']} coincidencias")
     for hoja, info in datos['hojas'].items():
         print(f"  - Hoja: {hoja}, Datos: {info.to_string(index=False)}")
+    
+    # Mostrar la información adicional de humedad e internet
+    if datos['humedad']:
+        print(f"  - Humedad encontrada en: {datos['humedad']}")
+    if datos['internet']:
+        print(f"  - Internet encontrado en: {datos['internet']}")
