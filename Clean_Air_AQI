@@ -1,0 +1,76 @@
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
+
+# Inicializa el controlador de Selenium
+driver = webdriver.Chrome()  # o el controlador que estés usando
+driver.get("https://www.aqi.in/world-most-polluted-cities")  # URL de la página
+
+# Lista para almacenar los datos de ranking y ciudades
+data = []
+
+try:
+    while True:  # Un ciclo que seguirá hasta que no haya más páginas
+        
+        # Esperar hasta que la tabla de datos esté visible
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.TAG_NAME, 'tbody'))
+        )
+        
+        # Encontrar todas las filas de la tabla
+        rows = driver.find_elements(By.CSS_SELECTOR, 'tbody tr')
+
+        for row in rows:
+            # Extraer el ranking
+            ranking = row.find_element(By.CLASS_NAME, 'sorting_1').text.strip()
+            
+            # Extraer el nombre de la ciudad y el país
+            city_info = row.find_element(By.TAG_NAME, 'a').text.strip()
+            
+            # Guardar los datos en la lista
+            data.append([ranking, city_info])
+        
+        # Intentar encontrar el botón de "Next" y hacer clic
+        try:
+            # Eliminar el iframe que bloquea el botón si existe
+            iframes = driver.find_elements(By.TAG_NAME, "iframe")
+            for iframe in iframes:
+                driver.execute_script("""
+                var iframe = arguments[0];
+                iframe.parentNode.removeChild(iframe);
+                """, iframe)
+            
+            next_button = driver.find_element(By.CSS_SELECTOR, 'li.paginate_button.next a')
+            parent_li = driver.find_element(By.CSS_SELECTOR, 'li.paginate_button.next')
+            
+            # Verificar si el botón "Next" está deshabilitado
+            if "disabled" in parent_li.get_attribute("class"):
+                break  # Salir del bucle si el botón está deshabilitado
+            
+            next_button.click()  # Hacer clic en el botón "Next"
+            
+            # Esperar a que la nueva tabla se cargue antes de continuar
+            WebDriverWait(driver, 20).until(
+                EC.staleness_of(rows[0])  # Esperar a que la tabla cambie
+            )
+        except ElementClickInterceptedException:
+            print("El clic en el botón fue interceptado por otro elemento.")
+        except NoSuchElementException:
+            print("No se pudo encontrar el botón de 'Next'.")
+            break  # Salir del bucle si no se encuentra el botón de "Next"
+
+except TimeoutException:
+    print("No se pudo encontrar la tabla en el tiempo especificado.")
+finally:
+    driver.quit()  # Cierra el navegador
+
+# Crear un DataFrame de pandas con los datos
+df = pd.DataFrame(data, columns=['Ranking', 'City'])
+
+# Guardar los datos en un archivo Excel
+df.to_excel('ranking_ciudades.xlsx', index=False)
+
+print("Datos guardados en 'ranking_ciudades.xlsx'.")
